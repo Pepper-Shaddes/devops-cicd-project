@@ -1,0 +1,7 @@
+node_modules/
+npm-debug.log
+.env
+global-bundle.pem
+amazon-cloudwatch-agent.deb
+app.log
+server.js.backup
