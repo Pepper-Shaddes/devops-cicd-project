@@ -1,11 +1,10 @@
-
 require('dotenv').config();
 
 const express = require('express');
 const os = require('os');
 const fs = require('fs');
 const { Pool } = require('pg');
-
+const { isValidMessage } = require('./messageValidator');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const START_TIME = new Date();
@@ -67,7 +66,7 @@ app.get('/api/messages', async (req, res) => {
 app.post('/api/messages', async (req, res) => {
   const { message } = req.body;
 
-  if (typeof message !== 'string' || !message.trim()) {
+  if (isValidMessage(message)) {
     return res.status(400).json({
       error: 'Please provide a non-empty message',
     });
