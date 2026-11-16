@@ -7,7 +7,6 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "jest"
-
   },
   "engines": {
     "node": ">=18"
@@ -15,7 +14,8 @@
   "dependencies": {
     "dotenv": "^18.0.7",
     "express": "^4.19.2",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "supertest": "^7.3.2"
   },
   "devDependencies": {
     "jest": "^30.5.2"
