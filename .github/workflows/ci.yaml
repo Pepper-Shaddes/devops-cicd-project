@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,8 +25,62 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify Node.js
-        run: node --version
-
       - name: Running Tests
         run: npm test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        env:
+          ECR_REPOSITORY_URI: ${{ vars.ECR_REPOSITORY_URI }}
+        run: |
+          docker build \
+            -t $ECR_REPOSITORY_URI:$GITHUB_SHA \
+            -t $ECR_REPOSITORY_URI:latest \
+            .
+
+      - name: Push Docker images to ECR
+        env:
+          ECR_REPOSITORY_URI: ${{ vars.ECR_REPOSITORY_URI }}
+        run: |
+          docker push $ECR_REPOSITORY_URI:$GITHUB_SHA
+          docker push $ECR_REPOSITORY_URI:latest
+
+      - name: Test Docker container
+        env:
+          ECR_REPOSITORY_URI: ${{ vars.ECR_REPOSITORY_URI }}
+        run: |
+          docker run -d \
+            --name ci-smoke-test \
+            -p 3000:3000 \
+            $ECR_REPOSITORY_URI:$GITHUB_SHA
+
+          trap 'docker rm -f ci-smoke-test' EXIT
+
+          timeout=60
+          interval=2
+          elapsed=0
+
+          until curl --fail --silent --show-error \
+            --connect-timeout 2 \
+            --max-time 3 \
+            http://localhost:3000/health; do
+
+            if [ "$elapsed" -ge "$timeout" ]; then
+              echo "Health check timed out"
+              docker logs ci-smoke-test
+              exit 1
+            fi
+
+            sleep "$interval"
+            elapsed=$((elapsed + interval))
+          done
+
+          echo "Container health check passed"
